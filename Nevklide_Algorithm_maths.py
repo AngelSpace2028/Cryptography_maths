@@ -49,8 +49,8 @@ def simulate_quantum_register(value, label):
     """Simulates a quantum register for encoding with Qiskit."""
     X = value.bit_length()
     qubits = min(2 ** X + 1, 32)  # Cap the qubits for practical simulation
-    print(f"\nSimulating quantum register for {label} ({value}):")
-    print(f"Bit length X = {X}, Using 2^X + 1 = {qubits} qubits and X + 1 = {X + 1} quantum operations.\n")
+    #print(f"\nSimulating quantum register for {label} ({value}):")
+    #print(f"Bit length X = {X}, Using 2^X + 1 = {qubits} qubits and X + 1 = {X + 1} quantum operations.\n")
 
     qc = QuantumCircuit(qubits)
 
