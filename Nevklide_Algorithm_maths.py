@@ -1,7 +1,6 @@
 import os
 from qiskit import QuantumCircuit
 
-
 def find_divisor(n):
     if n % 2 == 0:
         return 2
@@ -12,6 +11,9 @@ def find_divisor(n):
 
 
 def encode_until_one(number):
+    # Add a leading 1 to the binary representation of the number
+    number |= (1 << (number.bit_length()))  # This adds a 1 to the front in binary
+
     path = []
     step = 0
     while number > 1:
@@ -28,6 +30,8 @@ def decode_path(path):
     for num, divisor in reversed(path):
         if divisor:
             number *= divisor
+    # Remove the leading 1 added during encoding
+    number >>= 1  # Shift right to remove the leading 1
     return number
 
 
