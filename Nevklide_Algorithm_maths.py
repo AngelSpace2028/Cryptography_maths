@@ -65,7 +65,7 @@ def simulate_quantum_register(value, label):
     for i in range(X + 1):
         qc.h(i)
 
-    print(qc.draw())
+    #print(qc.draw())
 
 
 if __name__ == "__main__":
