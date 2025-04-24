@@ -53,8 +53,7 @@ def simulate_quantum_register(value, label):
     qc.barrier()
     for i in range(X + 1):
         qc.h(i)
-    # Optionally visualize:
-    # print(qc.draw())
+    # Uncomment to visualize: print(qc.draw())
 
 
 if __name__ == "__main__":
@@ -86,6 +85,7 @@ if __name__ == "__main__":
     elif choice == '2':
         file_J = input("Enter J file (last divisor): ")
         file_U = input("Enter U file (steps): ")
+        output_file = input("Enter output file to save the decoded number: ")
 
         if not os.path.isfile(file_J) or not os.path.isfile(file_U):
             print("One or both input files do not exist.")
@@ -93,8 +93,14 @@ if __name__ == "__main__":
             J = base256_read(file_J)
             U = base256_read(file_U)
 
-            print(f"Decoded Values:")
-            print(f"J (Last divisor before 1): {J}")
-            print(f"U (Total steps): {U}")
+            # Reconstruct the path by repeating the last divisor
+            path = [(J, J)] * (U - 1) + [(1, None)]
+            decoded = decode_path(path)
+
+            base256_write(output_file, decoded)
+
+            print(f"Decoded Number: {decoded}")
+            print(f"Saved to {output_file}")
+
     else:
         print("Invalid selection.")
