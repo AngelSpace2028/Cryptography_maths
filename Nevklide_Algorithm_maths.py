@@ -1,4 +1,4 @@
-from qiskit import QuantumCircuit
+from math import log2
 
 def find_divisor(n):
     """Finds the smallest divisor of n greater than 1."""
@@ -10,68 +10,59 @@ def find_divisor(n):
     return n  # n is prime
 
 def encode_until_one(number):
-    """Encodes by repeatedly dividing by the smallest divisor until reaching 1."""
-    original = number
+    """Encodes a number by repeatedly dividing by its smallest divisor until 1 is reached."""
     path = []
     step = 0
-
-    print(f"Encoding {number} until it becomes 1...\n")
+    print(f"\nEncoding {number} until it becomes 1...\n")
 
     while number > 1:
         divisor = find_divisor(number)
-        path.append((number, divisor))  # Save P and Q
-        step += 1
-        print(f"Step {step}: P = {number}, Q = {divisor}, Result = {number // divisor}")
+        path.append((number, divisor))
         number //= divisor
+        step += 1
+        print(f"Step {step}: P = {path[-1][0]}, Q = {divisor}, Result = {number}")
 
-    print(f"Total steps: {step}")
-    return path, step
+    print(f"Total steps: {step}\n")
+    return path
 
 def decode_path(path):
-    """Decodes number from path."""
+    """Decodes a number from its encoded path."""
     number = 1
-    print("\nDecoding path:")
-    for p, q in reversed(path):
-        number *= q
-        print(f"{number // q} * {q} = {number}")
+    print("Decoding path:")
+    for num, divisor in reversed(path):
+        number *= divisor
+        print(f"{number // divisor} * {divisor} = {number}")
     return number
 
-def simulate_qubits(value, label):
-    """Simulate qubits based on bit length."""
-    X = value.bit_length()
-    qubits = 2 ** X + 1
-
-    print(f"\n{label} = {value}")
-    print(f"Bit length X = {X}")
-    print(f"Using 2^X + 1 = {qubits} qubits and X + 1 = {X + 1} quantum operations\n")
-
-    qc = QuantumCircuit(qubits)
-    for i in range(min(X + 1, qubits)):
-        qc.h(i)
-    print(qc.draw())
+def quantum_info(n):
+    bit_length = n.bit_length()
+    qubits = min((2 ** bit_length) + 1, 32)  # Cap for simulation
+    print(f"\nOriginal Number = {n}")
+    print(f"Bit length X = {bit_length}")
+    print(f"Using 2^X + 1 = {2 ** bit_length + 1} qubits and X + 1 = {bit_length + 1} quantum operations")
+    print(f"(Simulation uses {qubits} qubits max)\n")
 
 if __name__ == "__main__":
-    start_number = int(input("Enter a number to encode (e.g., 13751): "))
+    try:
+        start_number = int(input("Enter a number to encode (e.g., 13751): "))
+        if start_number <= 1:
+            print("Please enter a number greater than 1.")
+        else:
+            path = encode_until_one(start_number)
 
-    if start_number <= 1:
-        print("Please enter a number greater than 1.")
-    else:
-        path, total_steps = encode_until_one(start_number)
+            print("All (P, Q) steps:")
+            for i, (p, q) in enumerate(path):
+                print(f"Step {i+1}: P = {p}, Q = {q}, P ÷ Q = {p // q}")
+            print()
 
-        print("\nAll (P, Q) steps:")
-        for i, (p, q) in enumerate(path, 1):
-            print(f"Step {i}: P = {p}, Q = {q}, P ÷ Q = {p // q}")
+            decoded = decode_path(path)
+            print(f"\nDecoded back to: {decoded}")
+            print("Success!" if decoded == start_number else "Mismatch!")
 
-        decoded = decode_path(path)
-        print(f"\nDecoded back to: {decoded}")
-        print("Success!" if decoded == start_number else "Mismatch!")
+            print(f"\nLast P before reaching 1: {path[-1][0] if path else 1}")
+            print(f"Total steps taken: {len(path)}")
 
-        # Last P before 1
-        last_p = path[-1][0] if path else 1
-        print(f"\nLast P before reaching 1: {last_p}")
-        print(f"Total steps taken: {total_steps}")
+            quantum_info(start_number)
 
-        # Simulate quantum logic
-        simulate_qubits(start_number, "Original Number")
-        simulate_qubits(last_p, "Last P Before 1")
-        simulate_qubits(total_steps, "Total Steps")
+    except ValueError:
+        print("Invalid input. Please enter a valid integer.")
