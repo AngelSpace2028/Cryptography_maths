@@ -1,6 +1,8 @@
 import os
-from qiskit import QuantumCircuit
 import zstandard as zstd
+import pickle
+from qiskit import QuantumCircuit
+
 
 # Function to find the divisor of a number
 def find_divisor(n):
@@ -29,7 +31,6 @@ def decode_path(path):
     for num, divisor in reversed(path):
         if divisor:
             number *= divisor
-    number >>= 1  # Remove the leading 1 added during encoding
     return number
 
 # Function to write a number to a file in base 256 encoding
@@ -56,98 +57,76 @@ def decompress_with_zstd(input_file, output_file):
         dctx = zstd.ZstdDecompressor()
         dctx.copy_stream(f_in, f_out)
 
-# Function to add a leading 1 bit to a number before encoding
-def add_leading_one_bit(number):
-    binary = bin(number)[2:]  # Remove '0b'
-    modified = '1' + binary
-    return int(modified, 2)
+def encode_quantum(x):
+    """Prepares a quantum circuit representing 2^x using x+1 qubits (no simulation)."""
+    if x < 0:
+        print("Error: x must be a non-negative integer.")
+        return None
 
-# Function to remove the leading 1 bit during decoding
-def remove_leading_one_bit(number):
-    binary = bin(number)[2:]
-    if binary[0] != '1':
-        raise ValueError("No leading 1 found in binary")
-    return int(binary[1:], 2)
+    num_qubits = x + 1
+    qc = QuantumCircuit(num_qubits, num_qubits)  # Create a quantum circuit
 
-# Function to create a quantum circuit for 2^(X+1) + 1 with X+1 qubits
-def quantum_circuit_for_number(X):
-    qubits = X + 1
-    circuit = QuantumCircuit(qubits, qubits)
+    # Prepare the state |2^x⟩ (simplified representation)
+    qc.x(x)  # Set the x-th qubit to 1
 
-    # Apply an X gate (NOT gate) on all qubits to represent |1>
-    for qubit in range(qubits):
-        circuit.x(qubit)
-    
-    # Add measurements to the classical bits for each qubit
-    circuit.measure(range(qubits), range(qubits))
+    return qc  # Return the quantum circuit
 
-    return circuit
 
-# Main encoding function
+# Main encoding function (modified to include quantum part)
 def encode():
     print("Quantum Divisor Encoder\n")
     in_file = input("Enter input file with number: ")
-    out_J_file = input("Enter output filename for J (last divisor): ")
-    out_U_file = input("Enter output filename for U (steps): ")
-    compressed_J_file = out_J_file + ".zst"
-    compressed_U_file = out_U_file + ".zst"
-    
+    out_path_file = input("Enter output filename for path: ")
+    compressed_path_file = out_path_file + ".zst"
+
     if not os.path.isfile(in_file):
         print("Input file does not exist.")
-    else:
+        return
+
+    try:
         original_number = base256_read(in_file)
-        number = add_leading_one_bit(original_number)  # Add the leading 1 before encoding
-        path, total_steps = encode_until_one(number)
-        last_before_one = path[-2][0] if len(path) >= 2 else 1
-        last_Q = path[-2][1] if len(path) >= 2 else 1
-        
-        base256_write(out_J_file, last_Q)
-        base256_write(out_U_file, total_steps)
-        
-        # Compress the J and U files using Zstandard
-        compress_with_zstd(out_J_file, compressed_J_file)
-        compress_with_zstd(out_U_file, compressed_U_file)
-        
-        print(f"Encoded. Last Q (J): {last_Q}, Steps (U): {total_steps}")
-        print(f"Compressed files: {compressed_J_file} and {compressed_U_file}")
+        path, total_steps = encode_until_one(original_number)
+
+        # Quantum part (no simulation):
+        x = (original_number).bit_length() -1
+        quantum_circuit = encode_quantum(x)
+        if quantum_circuit:
+            print(f"Quantum circuit representing 2^{x} created successfully.")
+            print(quantum_circuit)
+
+        # Classical serialization and compression
+        with open(out_path_file, 'wb') as f:
+            pickle.dump(path, f)
+
+        compress_with_zstd(out_path_file, compressed_path_file)
+        print(f"Encoded. Path saved to: {compressed_path_file}")
+    except Exception as e:
+        print(f"An error occurred during encoding: {e}")
+
 
 # Main decoding function
 def decode():
-    file_J = input("Enter J file (last divisor .zst): ")
-    file_U = input("Enter U file (steps .zst): ")
+    file_path = input("Enter path file (.zst): ")
     output_file = input("Enter output file to save the decoded number: ")
-    
-    # Decompressed file paths (remove .zst extension)
-    decompressed_J = file_J.replace('.zst', '')
-    decompressed_U = file_U.replace('.zst', '')
-    
-    # Check if the .zst files exist
-    if not os.path.isfile(file_J) or not os.path.isfile(file_U):
-        print("One or both input .zst files do not exist.")
+
+    decompressed_path = file_path.replace('.zst', '')
+
+    if not os.path.isfile(file_path):
+        print("Input .zst file does not exist.")
         return
-    
-    # Decompress the .zst files into original files
-    decompress_with_zstd(file_J, decompressed_J)
-    decompress_with_zstd(file_U, decompressed_U)
-    
-    # Read the decompressed files
-    J = base256_read(decompressed_J)
-    U = base256_read(decompressed_U)
-    
-    # Reconstruct the path by repeating the last divisor
-    path = [(J, J)] * (U - 1) + [(1, None)]
-    
-    # Decode the number from the path
-    decoded = decode_path(path)
-    
-    # Remove the leading 1 bit before saving the original number
-    decoded = remove_leading_one_bit(decoded)
-    
-    # Save the decoded number to a file
-    base256_write(output_file, decoded)
-    
-    print(f"Decoded Number: {decoded}")
-    print(f"Saved to {output_file}")
+
+    try:
+        decompress_with_zstd(file_path, decompressed_path)
+        with open(decompressed_path, 'rb') as f:
+            path = pickle.load(f)
+        decoded = decode_path(path)
+        base256_write(output_file, decoded)
+        print(f"Decoded Number: {decoded}")
+        print(f"Saved to {output_file}")
+    except Exception as e:
+        print(f"An error occurred during decoding: {e}")
+
+
 
 # Main program to handle encoding and decoding
 if __name__ == "__main__":
@@ -159,3 +138,4 @@ if __name__ == "__main__":
         decode()
     else:
         print("Invalid selection.")
+
