@@ -1,7 +1,6 @@
 import os
-import zstandard as zstd
 from qiskit import QuantumCircuit
-from qiskit.visualization import plot_histogram
+import zstandard as zstd
 
 # Function to find the divisor of a number
 def find_divisor(n):
@@ -30,8 +29,7 @@ def decode_path(path):
     for num, divisor in reversed(path):
         if divisor:
             number *= divisor
-    # Remove the leading 1 added during encoding
-    number >>= 1
+    number >>= 1  # Remove the leading 1 added during encoding
     return number
 
 # Function to write a number to a file in base 256 encoding
@@ -71,27 +69,19 @@ def remove_leading_one_bit(number):
         raise ValueError("No leading 1 found in binary")
     return int(binary[1:], 2)
 
-# Quantum Addition Function using Qiskit
-def quantum_addition(number1, number2):
-    qubits = max(number1.bit_length(), number2.bit_length()) + 1
-    qc = QuantumCircuit(qubits)
+# Function to create a quantum circuit for 2^(X+1) + 1 with X+1 qubits
+def quantum_circuit_for_number(X):
+    qubits = X + 1
+    circuit = QuantumCircuit(qubits, qubits)
 
-    # Encode the numbers into quantum registers
-    for i in range(qubits):
-        if (number1 >> i) & 1:
-            qc.x(i)
-        if (number2 >> i) & 1:
-            qc.x(i + qubits // 2)  # Divide the qubits into two parts for addition
+    # Apply an X gate (NOT gate) on all qubits to represent |1>
+    for qubit in range(qubits):
+        circuit.x(qubit)
+    
+    # Add measurements to the classical bits for each qubit
+    circuit.measure(range(qubits), range(qubits))
 
-    # Apply some quantum gates for addition (simulated for illustration)
-    for i in range(qubits - 1):
-        qc.cx(i, i + 1)
-
-    # Visualize the circuit
-    print("Quantum addition circuit:")
-    print(qc.draw())
-
-    return qc
+    return circuit
 
 # Main encoding function
 def encode():
@@ -120,9 +110,6 @@ def encode():
         
         print(f"Encoded. Last Q (J): {last_Q}, Steps (U): {total_steps}")
         print(f"Compressed files: {compressed_J_file} and {compressed_U_file}")
-
-        # Quantum operation for addition (just as an illustration)
-        quantum_addition(original_number, last_Q)
 
 # Main decoding function
 def decode():
@@ -161,9 +148,6 @@ def decode():
     
     print(f"Decoded Number: {decoded}")
     print(f"Saved to {output_file}")
-
-    # Quantum operation for addition (just as an illustration)
-    quantum_addition(decoded, J)
 
 # Main program to handle encoding and decoding
 if __name__ == "__main__":
