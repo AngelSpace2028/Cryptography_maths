@@ -70,6 +70,19 @@ def simulate_quantum_register(value, label):
         qc.h(i)
     # Uncomment to visualize: print(qc.draw())
 
+# Function to add a leading 1 bit to a number before encoding
+def add_leading_one_bit(number):
+    binary = bin(number)[2:]  # Remove '0b'
+    modified = '1' + binary
+    return int(modified, 2)
+
+# Function to remove the leading 1 bit during decoding
+def remove_leading_one_bit(number):
+    binary = bin(number)[2:]
+    if binary[0] != '1':
+        raise ValueError("No leading 1 found in binary")
+    return int(binary[1:], 2)
+
 # Main program to handle encoding and decoding
 if __name__ == "__main__":
     print("Quantum Divisor Encoder\n")
@@ -85,7 +98,8 @@ if __name__ == "__main__":
         if not os.path.isfile(in_file):
             print("Input file does not exist.")
         else:
-            number = base256_read(in_file)
+            original_number = base256_read(in_file)
+            number = add_leading_one_bit(original_number)  # Add the leading 1 before encoding
             path, total_steps = encode_until_one(number)
             last_before_one = path[-2][0] if len(path) >= 2 else 1
             last_Q = path[-2][1] if len(path) >= 2 else 1
@@ -97,7 +111,7 @@ if __name__ == "__main__":
             compress_with_zstd(out_J_file, compressed_J_file)
             compress_with_zstd(out_U_file, compressed_U_file)
             
-            simulate_quantum_register(number, "Original Number")
+            simulate_quantum_register(original_number, "Original Number")
             simulate_quantum_register(last_before_one, "Last Before One")
             simulate_quantum_register(total_steps, "Total Steps")
             
@@ -125,6 +139,9 @@ if __name__ == "__main__":
             # Reconstruct the path by repeating the last divisor
             path = [(J, J)] * (U - 1) + [(1, None)]
             decoded = decode_path(path)
+            
+            # Remove the leading 1 bit before saving the original number
+            decoded = remove_leading_one_bit(decoded)
             
             base256_write(output_file, decoded)
             
