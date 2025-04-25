@@ -1,6 +1,7 @@
 import os
 import zstandard as zstd
 from qiskit import QuantumCircuit
+from qiskit.visualization import plot_histogram
 
 # Function to find the divisor of a number
 def find_divisor(n):
@@ -57,19 +58,6 @@ def decompress_with_zstd(input_file, output_file):
         dctx = zstd.ZstdDecompressor()
         dctx.copy_stream(f_in, f_out)
 
-# Simulate a quantum register with a given value
-def simulate_quantum_register(value, label):
-    X = value.bit_length()
-    qubits = min(2 ** X + 1, 32)
-    qc = QuantumCircuit(qubits)
-    for i in range(X + 1):
-        if (value >> i) & 1:
-            qc.x(i)
-    qc.barrier()
-    for i in range(X + 1):
-        qc.h(i)
-    # Uncomment to visualize: print(qc.draw())
-
 # Function to add a leading 1 bit to a number before encoding
 def add_leading_one_bit(number):
     binary = bin(number)[2:]  # Remove '0b'
@@ -83,70 +71,107 @@ def remove_leading_one_bit(number):
         raise ValueError("No leading 1 found in binary")
     return int(binary[1:], 2)
 
+# Quantum Addition Function using Qiskit
+def quantum_addition(number1, number2):
+    qubits = max(number1.bit_length(), number2.bit_length()) + 1
+    qc = QuantumCircuit(qubits)
+
+    # Encode the numbers into quantum registers
+    for i in range(qubits):
+        if (number1 >> i) & 1:
+            qc.x(i)
+        if (number2 >> i) & 1:
+            qc.x(i + qubits // 2)  # Divide the qubits into two parts for addition
+
+    # Apply some quantum gates for addition (simulated for illustration)
+    for i in range(qubits - 1):
+        qc.cx(i, i + 1)
+
+    # Visualize the circuit
+    print("Quantum addition circuit:")
+    print(qc.draw())
+
+    return qc
+
+# Main encoding function
+def encode():
+    print("Quantum Divisor Encoder\n")
+    in_file = input("Enter input file with number: ")
+    out_J_file = input("Enter output filename for J (last divisor): ")
+    out_U_file = input("Enter output filename for U (steps): ")
+    compressed_J_file = out_J_file + ".zst"
+    compressed_U_file = out_U_file + ".zst"
+    
+    if not os.path.isfile(in_file):
+        print("Input file does not exist.")
+    else:
+        original_number = base256_read(in_file)
+        number = add_leading_one_bit(original_number)  # Add the leading 1 before encoding
+        path, total_steps = encode_until_one(number)
+        last_before_one = path[-2][0] if len(path) >= 2 else 1
+        last_Q = path[-2][1] if len(path) >= 2 else 1
+        
+        base256_write(out_J_file, last_Q)
+        base256_write(out_U_file, total_steps)
+        
+        # Compress the J and U files using Zstandard
+        compress_with_zstd(out_J_file, compressed_J_file)
+        compress_with_zstd(out_U_file, compressed_U_file)
+        
+        print(f"Encoded. Last Q (J): {last_Q}, Steps (U): {total_steps}")
+        print(f"Compressed files: {compressed_J_file} and {compressed_U_file}")
+
+        # Quantum operation for addition (just as an illustration)
+        quantum_addition(original_number, last_Q)
+
+# Main decoding function
+def decode():
+    file_J = input("Enter J file (last divisor .zst): ")
+    file_U = input("Enter U file (steps .zst): ")
+    output_file = input("Enter output file to save the decoded number: ")
+    
+    # Decompressed file paths (remove .zst extension)
+    decompressed_J = file_J.replace('.zst', '')
+    decompressed_U = file_U.replace('.zst', '')
+    
+    # Check if the .zst files exist
+    if not os.path.isfile(file_J) or not os.path.isfile(file_U):
+        print("One or both input .zst files do not exist.")
+        return
+    
+    # Decompress the .zst files into original files
+    decompress_with_zstd(file_J, decompressed_J)
+    decompress_with_zstd(file_U, decompressed_U)
+    
+    # Read the decompressed files
+    J = base256_read(decompressed_J)
+    U = base256_read(decompressed_U)
+    
+    # Reconstruct the path by repeating the last divisor
+    path = [(J, J)] * (U - 1) + [(1, None)]
+    
+    # Decode the number from the path
+    decoded = decode_path(path)
+    
+    # Remove the leading 1 bit before saving the original number
+    decoded = remove_leading_one_bit(decoded)
+    
+    # Save the decoded number to a file
+    base256_write(output_file, decoded)
+    
+    print(f"Decoded Number: {decoded}")
+    print(f"Saved to {output_file}")
+
+    # Quantum operation for addition (just as an illustration)
+    quantum_addition(decoded, J)
+
 # Main program to handle encoding and decoding
 if __name__ == "__main__":
-    print("Quantum Divisor Encoder\n")
     choice = input("Enter 1 to encode, 2 to decode: ")
 
     if choice == '1':
-        in_file = input("Enter input file with number: ")
-        out_J_file = input("Enter output filename for J (last divisor): ")
-        out_U_file = input("Enter output filename for U (steps): ")
-        compressed_J_file = out_J_file + ".zst"
-        compressed_U_file = out_U_file + ".zst"
-        
-        if not os.path.isfile(in_file):
-            print("Input file does not exist.")
-        else:
-            original_number = base256_read(in_file)
-            number = add_leading_one_bit(original_number)  # Add the leading 1 before encoding
-            path, total_steps = encode_until_one(number)
-            last_before_one = path[-2][0] if len(path) >= 2 else 1
-            last_Q = path[-2][1] if len(path) >= 2 else 1
-            
-            base256_write(out_J_file, last_Q)
-            base256_write(out_U_file, total_steps)
-            
-            # Compress the J and U files using Zstandard
-            compress_with_zstd(out_J_file, compressed_J_file)
-            compress_with_zstd(out_U_file, compressed_U_file)
-            
-            simulate_quantum_register(original_number, "Original Number")
-            simulate_quantum_register(last_before_one, "Last Before One")
-            simulate_quantum_register(total_steps, "Total Steps")
-            
-            print(f"Encoded. Last Q (J): {last_Q}, Steps (U): {total_steps}")
-            print(f"Compressed files: {compressed_J_file} and {compressed_U_file}")
-    
+        encode()
     elif choice == '2':
-        file_J = input("Enter J file (last divisor): ")
-        file_U = input("Enter U file (steps): ")
-        output_file = input("Enter output file to save the decoded number: ")
-        
-        compressed_J_file = file_J + ".zst"
-        compressed_U_file = file_U + ".zst"
-        
-        if not os.path.isfile(compressed_J_file) or not os.path.isfile(compressed_U_file):
-            print("One or both input files do not exist.")
-        else:
-            # Decompress the files
-            decompress_with_zstd(compressed_J_file, file_J)
-            decompress_with_zstd(compressed_U_file, file_U)
-            
-            J = base256_read(file_J)
-            U = base256_read(file_U)
-            
-            # Reconstruct the path by repeating the last divisor
-            path = [(J, J)] * (U - 1) + [(1, None)]
-            decoded = decode_path(path)
-            
-            # Remove the leading 1 bit before saving the original number
-            decoded = remove_leading_one_bit(decoded)
-            
-            base256_write(output_file, decoded)
-            
-            print(f"Decoded Number: {decoded}")
-            print(f"Saved to {output_file}")
-    
+        decode()
     else:
         print("Invalid selection.")
