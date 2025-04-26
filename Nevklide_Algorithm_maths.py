@@ -54,21 +54,52 @@ def decompress_with_zstd(input_file, output_file):
         dctx = zstd.ZstdDecompressor()
         dctx.copy_stream(f_in, f_out)
 
-# Qiskit demonstration of 2**X = value using X+1 qubits
-def demonstrate_qubits(value):
-    if value <= 0:
-        print("Value must be positive for Qiskit demo.")
-        return
-    x = value.bit_length() - 1
-    num_qubits = x + 1
-    print(f"Qiskit Demo: Representing 2^{x} = {value} using {num_qubits} qubits")
-    circuit = QuantumCircuit(num_qubits, name="Qubits for 2^X")
-    circuit.x(x)  # Flip the highest qubit
-    print(circuit.draw())
+# Apply pattern transformation: "4,4,4,4,4" chunk-based transformation
+def transform_with_pattern(data, chunk_size=4):
+    transformed_data = bytearray()
+    for i in range(0, len(data), chunk_size):
+        chunk = data[i:i + chunk_size]
+        if len(chunk) < chunk_size:
+            chunk = chunk.ljust(chunk_size, b'\x00')  # Pad last chunk if needed
+        # A simple transformation example (you can customize this part)
+        transformed_chunk = bytearray([x ^ 0xFF for x in chunk])  # Bit-flipping for example
+        transformed_data.extend(transformed_chunk)
+    return transformed_data
+
+# Quantum encoding with Qiskit (without execution)
+def quantum_encode(number, qubits=3):
+    # Create a quantum circuit with 'qubits' number of qubits
+    circuit = QuantumCircuit(qubits, qubits)
+    
+    # Apply Hadamard gate to put the qubits in superposition
+    for qubit in range(qubits):
+        circuit.h(qubit)
+    
+    # Encode the number by applying a series of CNOT gates based on the number's bits
+    bin_number = bin(number)[2:].zfill(qubits)
+    for i, bit in enumerate(bin_number):
+        if bit == '1':
+            circuit.x(i)  # Apply X gate for '1' bit
+
+    # Instead of execution, we will just visualize the circuit here
+    # This is where we stop execution, and we're not measuring or running on a simulator
+    print(f"Quantum Encoding Circuit for {number} (with {qubits} qubits):")
+    print(circuit)
+    
+    # We will not actually simulate it, but return the quantum circuit for review
+    return circuit
+
+# Write 4-byte long to file
+def write_4byte_int(f, value):
+    f.write(value.to_bytes(4, 'big'))
+
+# Read 4-byte long from file
+def read_4byte_int(f):
+    return int.from_bytes(f.read(4), 'big')
 
 # Main encode function
 def encode():
-    print("Quantum Divisor Encoder\n")
+    print("Transformation Encoder\n")
     in_file = input("Enter input file with number: ").strip()
     out_path_file = input("Enter output filename for path (without .zst): ").strip()
     compressed_path_file = out_path_file + ".zst"
@@ -77,33 +108,43 @@ def encode():
         print("Input file does not exist.")
         return
     
-    original_number = base256_read(in_file)
-    demonstrate_qubits(original_number)
+    original_data = bytearray()
+    with open(in_file, 'rb') as f:
+        original_data = f.read()
+
+    # Apply pattern-based transformation to data
+    transformed_data = transform_with_pattern(original_data)
     
-    path, total_steps = encode_until_one(original_number)
+    # Write transformed data to a temporary file, including 4-byte long values (p, q, a, b)
+    temp_file = out_path_file + "_transformed"
+    with open(temp_file, 'wb') as f:
+        # Example: Write p, q, a, b as 4-byte integers
+        p = find_divisor(len(transformed_data))  # Dummy value for demonstration
+        q = len(transformed_data) // p
+        a = p + 1  # Just an example value
+        b = q + 1  # Just an example value
+        
+        # Write p, q, a, b as 4-byte values
+        write_4byte_int(f, p)
+        write_4byte_int(f, q)
+        write_4byte_int(f, a)
+        write_4byte_int(f, b)
+        
+        # Quantum encoding of the transformed data length
+        encoded_length_circuit = quantum_encode(len(transformed_data), qubits=3)  # Without execution
+        write_4byte_int(f, len(transformed_data))  # Use the actual length of data instead of quantum result
+        
+        # Write the transformed data
+        f.write(transformed_data)
     
-    # Saving file size and p:q values
-    file_size = os.path.getsize(in_file)
-    p = find_divisor(original_number)
-    q = original_number // p
-    
-    with open(out_path_file, 'w') as f:
-        f.write(f"{file_size}\n")
-        f.write(f"{p}:{q}\n")
-        for num, divisor in path:
-            if divisor is not None:
-                f.write(f"{num}:{divisor}\n")
-            else:
-                f.write(f"{num}:None\n")
-    
-    compress_with_zstd(out_path_file, compressed_path_file)
-    os.remove(out_path_file)  # Delete the uncompressed file after compressing
+    # Compress using Zstandard
+    compress_with_zstd(temp_file, compressed_path_file)
+    os.remove(temp_file)  # Delete the uncompressed file after compressing
     print(f"Encoded and saved to: {compressed_path_file}")
-    print(f"File Size: {file_size} bytes, Divisors: p = {p}, q = {q}")
 
 # Decode function
 def decode():
-    print("Quantum Divisor Decoder\n")
+    print("Transformation Decoder\n")
     file_path = input("Enter path file (.zst): ").strip()
     output_file = input("Enter output file to save the decoded number: ").strip()
     decompressed_path = file_path.replace('.zst', '')
@@ -112,27 +153,32 @@ def decode():
         print("Input .zst file does not exist.")
         return
     
+    # Decompress using Zstandard
     decompress_with_zstd(file_path, decompressed_path)
     
-    with open(decompressed_path, 'r') as f:
-        lines = f.readlines()
+    with open(decompressed_path, 'rb') as f:
+        # Read p, q, a, b (4-byte integers each)
+        p = read_4byte_int(f)
+        q = read_4byte_int(f)
+        a = read_4byte_int(f)
+        b = read_4byte_int(f)
+        
+        # Read quantum-encoded length
+        encoded_length = read_4byte_int(f)
+        print(f"Quantum-encoded length: {encoded_length}")
+        
+        # Read transformed data
+        transformed_data = f.read()
+
+    # Reverse the pattern-based transformation
+    original_data = transform_with_pattern(transformed_data)  # Apply same transformation logic
     
-    # Skip first two lines (file size and p:q info)
-    path = []
-    for line in lines[2:]:
-        num_str, div_str = line.strip().split(':')
-        num = int(num_str)
-        if div_str == 'None':
-            divisor = None
-        else:
-            divisor = int(div_str)
-        path.append((num, divisor))
+    # Write the original data to output file
+    with open(output_file, 'wb') as f:
+        f.write(original_data)
     
-    decoded = decode_path(path)
-    base256_write(output_file, decoded)
     os.remove(decompressed_path)  # Delete the decompressed temp file
-    print(f"Decoded Number: {decoded}")
-    print(f"Saved to {output_file}")
+    print(f"Decoded and saved to: {output_file}")
 
 # CLI handler
 if __name__ == "__main__":
