@@ -1,6 +1,6 @@
 import os
 import math
-import zstandard as zstd
+import paq
 from qiskit import QuantumCircuit
 
 # Find a divisor
@@ -36,27 +36,30 @@ def quantum_encode(number, qubits):
     for i, bit in enumerate(reversed(bin_number)):
         if bit == '1':
             circuit.x(i)
-    # Instead of simulate, we just manually read bits
     return int(bin_number, 2)
 
-# Compress using Zstandard
-def compress_with_zstd(input_file, output_file):
-    with open(input_file, 'rb') as f_in, open(output_file, 'wb') as f_out:
-        compressor = zstd.ZstdCompressor()
-        compressor.copy_stream(f_in, f_out)
+# Compress using zlib
+def compress_with_zlib(input_file, output_file):
+    with open(input_file, 'rb') as f_in:
+        data = f_in.read()
+    compressed_data = paq.compress(data)
+    with open(output_file, 'wb') as f_out:
+        f_out.write(compressed_data)
 
-# Decompress using Zstandard
-def decompress_with_zstd(input_file, output_file):
-    with open(input_file, 'rb') as f_in, open(output_file, 'wb') as f_out:
-        decompressor = zstd.ZstdDecompressor()
-        decompressor.copy_stream(f_in, f_out)
+# Decompress using zlib
+def decompress_with_zlib(input_file, output_file):
+    with open(input_file, 'rb') as f_in:
+        compressed_data = f_in.read()
+    decompressed_data = paq.decompress(compressed_data)
+    with open(output_file, 'wb') as f_out:
+        f_out.write(decompressed_data)
 
 # Main encoding function
 def encode():
     print("Quantum Encoder (X+1 qubits)")
     input_file = input("Enter input file: ").strip()
-    output_base = input("Enter output base name (without .zst): ").strip()
-    output_zst = output_base + ".zst"
+    output_base = input("Enter output base name (without .zlib): ").strip()
+    output_zlib = output_base + ".zlib"
 
     if not os.path.isfile(input_file):
         print("File does not exist.")
@@ -69,7 +72,6 @@ def encode():
 
     temp_file = output_base + "_temp"
     with open(temp_file, 'wb') as f:
-        # P, Q, A, B calculation
         size = len(transformed_data)
         p = find_divisor(size)
         q = size // p
@@ -93,23 +95,23 @@ def encode():
         # Write transformed data
         f.write(transformed_data)
 
-    compress_with_zstd(temp_file, output_zst)
+    compress_with_zlib(temp_file, output_zlib)
     os.remove(temp_file)
 
-    print(f"Encoding complete. Output saved to {output_zst}")
+    print(f"Encoding complete. Output saved to {output_zlib}")
 
 # Main decoding function
 def decode():
     print("Quantum Decoder (X+1 qubits)")
-    input_zst = input("Enter compressed file (.zst): ").strip()
+    input_zlib = input("Enter compressed file (.zlib): ").strip()
     output_file = input("Enter output file: ").strip()
 
-    if not os.path.isfile(input_zst):
+    if not os.path.isfile(input_zlib):
         print("Compressed file does not exist.")
         return
 
-    temp_file = input_zst.replace('.zst', '_temp')
-    decompress_with_zstd(input_zst, temp_file)
+    temp_file = input_zlib.replace('.zlib', '_temp')
+    decompress_with_zlib(input_zlib, temp_file)
 
     with open(temp_file, 'rb') as f:
         p = read_4byte_int(f)
@@ -119,7 +121,6 @@ def decode():
         encoded_size = read_4byte_int(f)
         transformed_data = f.read()
 
-    # Reverse transformation
     recovered_data = transform_with_pattern(transformed_data)
 
     with open(output_file, 'wb') as f:
@@ -130,7 +131,6 @@ def decode():
 
 # CLI
 if __name__ == "__main__":
-    print("Created by Jurijus Pacalovas.")
     print("Options:")
     print("1 - Encode file")
     print("2 - Decode file")
