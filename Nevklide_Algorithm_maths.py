@@ -131,6 +131,7 @@ def decode():
 
 # CLI
 if __name__ == "__main__":
+    print("Created by Jurijus Pacalovas.")
     print("Options:")
     print("1 - Encode file")
     print("2 - Decode file")
