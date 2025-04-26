@@ -54,7 +54,7 @@ def decompress_with_zstd(input_file, output_file):
         dctx = zstd.ZstdDecompressor()
         dctx.copy_stream(f_in, f_out)
 
-# Qiskit demonstration of 2**X = value using X+1 qubits, no Aer/execute
+# Qiskit demonstration of 2**X = value using X+1 qubits
 def demonstrate_qubits(value):
     if value <= 0:
         print("Value must be positive for Qiskit demo.")
@@ -62,63 +62,85 @@ def demonstrate_qubits(value):
     x = value.bit_length() - 1
     num_qubits = x + 1
     print(f"Qiskit Demo: Representing 2^{x} = {value} using {num_qubits} qubits")
-
     circuit = QuantumCircuit(num_qubits, name="Qubits for 2^X")
-    circuit.x(x)  # Flip the highest qubit (simulate 2**x)
+    circuit.x(x)  # Flip the highest qubit
     print(circuit.draw())
 
 # Main encode function
 def encode():
     print("Quantum Divisor Encoder\n")
-    in_file = input("Enter input file with number: ")
-    out_path_file = input("Enter output filename for path: ")
+    in_file = input("Enter input file with number: ").strip()
+    out_path_file = input("Enter output filename for path (without .zst): ").strip()
     compressed_path_file = out_path_file + ".zst"
-
+    
     if not os.path.isfile(in_file):
         print("Input file does not exist.")
         return
-
+    
     original_number = base256_read(in_file)
     demonstrate_qubits(original_number)
-
+    
     path, total_steps = encode_until_one(original_number)
-    path_str = ",".join(str(x) + ":" + str(y) for x, y in path if y is not None)
-
+    
+    # Saving file size and p:q values
+    file_size = os.path.getsize(in_file)
+    p = find_divisor(original_number)
+    q = original_number // p
+    
     with open(out_path_file, 'w') as f:
-        f.write(path_str)
-
+        f.write(f"{file_size}\n")
+        f.write(f"{p}:{q}\n")
+        for num, divisor in path:
+            if divisor is not None:
+                f.write(f"{num}:{divisor}\n")
+            else:
+                f.write(f"{num}:None\n")
+    
     compress_with_zstd(out_path_file, compressed_path_file)
-    print(f"Encoded. Path saved to: {compressed_path_file}")
+    os.remove(out_path_file)  # Delete the uncompressed file after compressing
+    print(f"Encoded and saved to: {compressed_path_file}")
+    print(f"File Size: {file_size} bytes, Divisors: p = {p}, q = {q}")
 
 # Decode function
 def decode():
-    file_path = input("Enter path file (.zst): ")
-    output_file = input("Enter output file to save the decoded number: ")
+    print("Quantum Divisor Decoder\n")
+    file_path = input("Enter path file (.zst): ").strip()
+    output_file = input("Enter output file to save the decoded number: ").strip()
     decompressed_path = file_path.replace('.zst', '')
-
+    
     if not os.path.isfile(file_path):
         print("Input .zst file does not exist.")
         return
-
+    
     decompress_with_zstd(file_path, decompressed_path)
-
+    
     with open(decompressed_path, 'r') as f:
-        path_str = f.read()
-
+        lines = f.readlines()
+    
+    # Skip first two lines (file size and p:q info)
     path = []
-    for item in path_str.split(','):
-        num, div = map(int, item.split(':'))
-        path.append((num, div))
-    path.append((1, None))
-
+    for line in lines[2:]:
+        num_str, div_str = line.strip().split(':')
+        num = int(num_str)
+        if div_str == 'None':
+            divisor = None
+        else:
+            divisor = int(div_str)
+        path.append((num, divisor))
+    
     decoded = decode_path(path)
     base256_write(output_file, decoded)
+    os.remove(decompressed_path)  # Delete the decompressed temp file
     print(f"Decoded Number: {decoded}")
     print(f"Saved to {output_file}")
 
 # CLI handler
 if __name__ == "__main__":
-    choice = input("Enter 1 to encode, 2 to decode: ")
+    print("Options:")
+    print("1 - Encode a number")
+    print("2 - Decode a number")
+    choice = input("Enter 1 or 2: ").strip()
+    
     if choice == '1':
         encode()
     elif choice == '2':
