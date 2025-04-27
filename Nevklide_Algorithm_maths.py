@@ -1,7 +1,19 @@
 import os
 import math
-import paq
-from qiskit import QuantumCircuit
+import paq  # Make sure you have a paq library or replace with zlib if needed
+
+# Check if a number is prime
+def is_prime(n):
+    if n < 2:
+        return False
+    if n == 2:
+        return True
+    if n % 2 == 0:
+        return False
+    for i in range(3, int(math.isqrt(n)) + 1, 2):
+        if n % i == 0:
+            return False
+    return True
 
 # Find a divisor
 def find_divisor(n):
@@ -10,7 +22,7 @@ def find_divisor(n):
     for i in range(3, int(math.isqrt(n)) + 1, 2):
         if n % i == 0:
             return i
-    return n
+    return n  # prime number
 
 # Write and read 4-byte integer
 def write_4byte_int(f, value):
@@ -23,31 +35,27 @@ def read_4byte_int(f):
 def transform_with_pattern(data, chunk_size=4):
     transformed = bytearray()
     for i in range(0, len(data), chunk_size):
-        chunk = data[i:i+chunk_size]
-        if len(chunk) < chunk_size:
-            chunk = chunk.ljust(chunk_size, b'\x00')
+        chunk = data[i:i + chunk_size]
         transformed.extend([b ^ 0xFF for b in chunk])
     return transformed
 
-# Quantum encoding simulation (without Aer, purely by building circuit)
-def quantum_encode(number, qubits):
-    circuit = QuantumCircuit(qubits)
-    bin_number = bin(number)[2:].zfill(qubits)
-    for i, bit in enumerate(reversed(bin_number)):
-        if bit == '1':
-            circuit.x(i)
-    return int(bin_number, 2)
+# Fake quantum encoding (simple number adjustment instead of real quantum logic)
+def fake_quantum_encode(number):
+    return number ^ 0xAAAAAAAA  # XOR with a pattern
 
-# Compress using zlib
-def compress_with_zlib(input_file, output_file):
+def fake_quantum_decode(encoded_number):
+    return encoded_number ^ 0xAAAAAAAA
+
+# Compress using PAQ
+def compress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         data = f_in.read()
     compressed_data = paq.compress(data)
     with open(output_file, 'wb') as f_out:
         f_out.write(compressed_data)
 
-# Decompress using zlib
-def decompress_with_zlib(input_file, output_file):
+# Decompress using PAQ
+def decompress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         compressed_data = f_in.read()
     decompressed_data = paq.decompress(compressed_data)
@@ -56,11 +64,11 @@ def decompress_with_zlib(input_file, output_file):
 
 # Main encoding function
 def encode():
-    print("Quantum Encoder (X+1 qubits)")
+    print("Simple Encoder (no Qiskit)")
     input_file = input("Enter input file: ").strip()
-    output_base = input("Enter output base name (without .zlib): ").strip()
-    output_zlib = output_base + ".zlib"
-
+    output_base = input("Enter output base name (without .paq): ").strip()
+    output_paq = output_base + ".paq"
+    
     if not os.path.isfile(input_file):
         print("File does not exist.")
         return
@@ -73,52 +81,65 @@ def encode():
     temp_file = output_base + "_temp"
     with open(temp_file, 'wb') as f:
         size = len(transformed_data)
+
         p = find_divisor(size)
         q = size // p
-        a = p + 1
-        b = q + 1
 
-        # Write P, Q, A, B
+        # Special rule: if p is greater than 2, prepend 00000000, else prepend 00000001
+        if is_prime(p) and p > 2:
+            # Prepend 00000000 byte
+            f.write(bytes([0x00]))
+        else:
+            # Prepend 00000001 byte
+            f.write(bytes([0x01]))
+
+        # Write p and q
         write_4byte_int(f, p)
         write_4byte_int(f, q)
-        write_4byte_int(f, a)
-        write_4byte_int(f, b)
 
-        # Calculate number of qubits needed
-        x = (size - 1).bit_length()
-        qubits = x + 1
-        
-        # Quantum encode the size
-        encoded_size = quantum_encode(size, qubits)
+        # Fake "quantum" encode the size
+        encoded_size = fake_quantum_encode(size)
         write_4byte_int(f, encoded_size)
 
         # Write transformed data
         f.write(transformed_data)
 
-    compress_with_zlib(temp_file, output_zlib)
+    compress_with_paq(temp_file, output_paq)
     os.remove(temp_file)
 
-    print(f"Encoding complete. Output saved to {output_zlib}")
+    print(f"Encoding complete. Output saved to {output_paq}")
 
 # Main decoding function
 def decode():
-    print("Quantum Decoder (X+1 qubits)")
-    input_zlib = input("Enter compressed file (.zlib): ").strip()
+    print("Simple Decoder (no Qiskit)")
+    input_paq = input("Enter compressed file (.paq): ").strip()
     output_file = input("Enter output file: ").strip()
 
-    if not os.path.isfile(input_zlib):
+    if not os.path.isfile(input_paq):
         print("Compressed file does not exist.")
         return
 
-    temp_file = input_zlib.replace('.zlib', '_temp')
-    decompress_with_zlib(input_zlib, temp_file)
+    temp_file = input_paq.replace('.paq', '_temp')
+    decompress_with_paq(input_paq, temp_file)
 
     with open(temp_file, 'rb') as f:
+        # Read the prepended byte
+        prepend_byte = f.read(1)
+        if prepend_byte == b'\x00':
+            # Means p > 2
+            pass
+        elif prepend_byte == b'\x01':
+            # Means p == 2
+            pass
+        else:
+            print("Unexpected prepend byte.")
+            return
+        
         p = read_4byte_int(f)
         q = read_4byte_int(f)
-        a = read_4byte_int(f)
-        b = read_4byte_int(f)
         encoded_size = read_4byte_int(f)
+        size = fake_quantum_decode(encoded_size)
+
         transformed_data = f.read()
 
     recovered_data = transform_with_pattern(transformed_data)
@@ -136,6 +157,7 @@ if __name__ == "__main__":
     print("1 - Encode file")
     print("2 - Decode file")
     choice = input("Enter 1 or 2: ").strip()
+
     if choice == '1':
         encode()
     elif choice == '2':
