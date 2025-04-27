@@ -15,14 +15,37 @@ def is_prime(n):
             return False
     return True
 
-# Find a divisor
-def find_divisor(n):
-    if n % 2 == 0:
-        return 2
-    for i in range(3, int(math.isqrt(n)) + 1, 2):
-        if n % i == 0:
-            return i
-    return n  # prime number
+# Find divisors, dividing by 2 and 3 as long as possible, and count primes
+def find_divisor_and_primes(n):
+    primes_found = 0
+    divisors = []
+    
+    # Divide by 2 as long as possible
+    while n % 2 == 0:
+        divisors.append(2)
+        n //= 2
+        primes_found += 1  # Count this as prime if it's 2
+    
+    # Divide by 3 as long as possible
+    while n % 3 == 0:
+        divisors.append(3)
+        n //= 3
+        primes_found += 1  # Count this as prime if it's 3
+
+    # Now check for other prime factors
+    for i in range(5, int(math.isqrt(n)) + 1, 2):
+        while n % i == 0:
+            divisors.append(i)
+            n //= i
+            if is_prime(i):
+                primes_found += 1
+    
+    # If n is still greater than 2 and is prime
+    if n > 2 and is_prime(n):
+        divisors.append(n)
+        primes_found += 1
+
+    return divisors, primes_found
 
 # Write and read 4-byte integer
 def write_4byte_int(f, value):
@@ -82,20 +105,18 @@ def encode():
     with open(temp_file, 'wb') as f:
         size = len(transformed_data)
 
-        p = find_divisor(size)
-        q = size // p
+        # Find divisors and prime counts
+        divisors, prime_count = find_divisor_and_primes(size)
 
-        # Special rule: if p is greater than 2, prepend 00000000, else prepend 00000001
-        if is_prime(p) and p > 2:
-            # Prepend 00000000 byte
+        # Special rule: if the number of primes is greater than 2, prepend 00000000, else prepend 00000001
+        if prime_count > 2:
             f.write(bytes([0x00]))
         else:
-            # Prepend 00000001 byte
             f.write(bytes([0x01]))
 
-        # Write p and q
-        write_4byte_int(f, p)
-        write_4byte_int(f, q)
+        # Write divisors count and prime count
+        write_4byte_int(f, len(divisors))
+        write_4byte_int(f, prime_count)
 
         # Fake "quantum" encode the size
         encoded_size = fake_quantum_encode(size)
@@ -123,20 +144,18 @@ def decode():
     decompress_with_paq(input_paq, temp_file)
 
     with open(temp_file, 'rb') as f:
-        # Read the prepended byte
         prepend_byte = f.read(1)
         if prepend_byte == b'\x00':
-            # Means p > 2
             pass
         elif prepend_byte == b'\x01':
-            # Means p == 2
             pass
         else:
             print("Unexpected prepend byte.")
             return
-        
-        p = read_4byte_int(f)
-        q = read_4byte_int(f)
+
+        divisors_count = read_4byte_int(f)
+        prime_count = read_4byte_int(f)
+
         encoded_size = read_4byte_int(f)
         size = fake_quantum_decode(encoded_size)
 
