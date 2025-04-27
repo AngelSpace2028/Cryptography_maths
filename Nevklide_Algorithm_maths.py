@@ -1,6 +1,6 @@
 import os
 import math
-import paq  # Make sure you have a paq library or replace with zlib if needed
+import paq  # Ensure you have a paq library or replace with zlib if needed
 
 # Check if a number is prime
 def is_prime(n):
@@ -108,11 +108,15 @@ def encode():
         # Find divisors and prime counts
         divisors, prime_count = find_divisor_and_primes(size)
 
-        # Special rule: if the number of primes is greater than 2, prepend 00000000, else prepend 00000001
-        if prime_count > 2:
-            f.write(bytes([0x00]))
+        # Handle prepend logic based on prime_count
+        if prime_count == 2:
+            f.write(bytes([0x01]))  # Prepend 0x01 for prime_count == 2 (encode 2 case)
+        elif prime_count == 0:
+            f.write(bytes([0x02]))  # Prepend 0x02 for prime_count == 0 (encode 0 case)
+        elif prime_count == 1:
+            f.write(bytes([0x03]))  # Prepend 0x03 for prime_count == 1 (encode 1 case)
         else:
-            f.write(bytes([0x01]))
+            f.write(bytes([0x00]))  # Prepend 0x00 for prime_count > 2
 
         # Write divisors count and prime count
         write_4byte_int(f, len(divisors))
@@ -145,10 +149,15 @@ def decode():
 
     with open(temp_file, 'rb') as f:
         prepend_byte = f.read(1)
+        
         if prepend_byte == b'\x00':
-            pass
+            pass  # Handle 0x00 as expected
         elif prepend_byte == b'\x01':
-            pass
+            pass  # Handle 0x01 as expected
+        elif prepend_byte == b'\x02':
+            pass  # Handle 0x02 as expected
+        elif prepend_byte == b'\x03':
+            pass  # Handle 0x03 as expected
         else:
             print("Unexpected prepend byte.")
             return
