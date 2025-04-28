@@ -3,8 +3,7 @@ import math
 
 try:
     import paq  # Ensure you have a paq library, or replace this with zlib if needed
-except ImportError:
-    import paq  # fallback to zlib if paq not available
+ 
 
 # Check if a number is prime
 def is_prime(n):
