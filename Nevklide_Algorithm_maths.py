@@ -1,8 +1,6 @@
 import os
 import math
-
-try:
-    import paq  # Ensure you have a paq library, or replace this with zlib if needed
+import paq  # Ensure you have a paq library, or replace this with zlib if needed
  
 
 # Check if a number is prime
