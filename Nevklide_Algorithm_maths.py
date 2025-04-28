@@ -175,6 +175,7 @@ def decode():
 
 # Main CLI
 if __name__ == "__main__":
+    print("Quantum Software")
     print("Created by Jurijus Pacalovas.")
     print("Options:")
     print("1 - Encode file")
