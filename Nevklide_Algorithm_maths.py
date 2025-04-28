@@ -1,6 +1,10 @@
 import os
 import math
-import paq  # Ensure you have a paq library or replace with zlib if needed
+
+try:
+    import paq  # Ensure you have a paq library, or replace this with zlib if needed
+except ImportError:
+    import zlib as paq  # fallback to zlib if paq not available
 
 # Check if a number is prime
 def is_prime(n):
@@ -24,23 +28,22 @@ def find_divisor_and_primes(n):
     while n % 2 == 0:
         divisors.append(2)
         n //= 2
-        primes_found += 1  # Count this as prime if it's 2
+        primes_found += 1
     
     # Divide by 3 as long as possible
     while n % 3 == 0:
         divisors.append(3)
         n //= 3
-        primes_found += 1  # Count this as prime if it's 3
+        primes_found += 1
 
-    # Now check for other prime factors
+    # Check for other prime factors
     for i in range(5, int(math.isqrt(n)) + 1, 2):
         while n % i == 0:
             divisors.append(i)
             n //= i
             if is_prime(i):
                 primes_found += 1
-    
-    # If n is still greater than 2 and is prime
+
     if n > 2 and is_prime(n):
         divisors.append(n)
         primes_found += 1
@@ -54,7 +57,7 @@ def write_4byte_int(f, value):
 def read_4byte_int(f):
     return int.from_bytes(f.read(4), 'big')
 
-# Simple pattern transformation (bit-flipping example)
+# Simple pattern transformation (bit-flipping)
 def transform_with_pattern(data, chunk_size=4):
     transformed = bytearray()
     for i in range(0, len(data), chunk_size):
@@ -62,14 +65,14 @@ def transform_with_pattern(data, chunk_size=4):
         transformed.extend([b ^ 0xFF for b in chunk])
     return transformed
 
-# Fake quantum encoding (simple number adjustment instead of real quantum logic)
+# Fake quantum encoding
 def fake_quantum_encode(number):
-    return number ^ 0xAAAAAAAA  # XOR with a pattern
+    return number ^ 0xAAAAAAAA
 
 def fake_quantum_decode(encoded_number):
     return encoded_number ^ 0xAAAAAAAA
 
-# Compress using PAQ
+# Compress using PAQ (or zlib fallback)
 def compress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         data = f_in.read()
@@ -77,7 +80,7 @@ def compress_with_paq(input_file, output_file):
     with open(output_file, 'wb') as f_out:
         f_out.write(compressed_data)
 
-# Decompress using PAQ
+# Decompress using PAQ (or zlib fallback)
 def decompress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         compressed_data = f_in.read()
@@ -85,11 +88,16 @@ def decompress_with_paq(input_file, output_file):
     with open(output_file, 'wb') as f_out:
         f_out.write(decompressed_data)
 
-# Main encoding function
+# Encoding function
 def encode():
-    print("Simple Encoder (no Qiskit)")
-    input_file = input("Enter input file: ").strip()
-    output_base = input("Enter output base name (without .paq): ").strip()
+    print("\nSimple Encoder (no Qiskit)")
+    try:
+        input_file = input("Enter input file: ").strip()
+        output_base = input("Enter output base name (without .paq): ").strip()
+    except EOFError:
+        print("No input detected. Exiting encode mode.")
+        return
+
     output_paq = output_base + ".paq"
     
     if not os.path.isfile(input_file):
@@ -104,29 +112,23 @@ def encode():
     temp_file = output_base + "_temp"
     with open(temp_file, 'wb') as f:
         size = len(transformed_data)
-
-        # Find divisors and prime counts
         divisors, prime_count = find_divisor_and_primes(size)
 
-        # Handle prepend logic based on prime_count
         if prime_count == 2:
-            f.write(bytes([0x01]))  # Prepend 0x01 for prime_count == 2 (encode 2 case)
+            f.write(bytes([0x01]))
         elif prime_count == 0:
-            f.write(bytes([0x02]))  # Prepend 0x02 for prime_count == 0 (encode 0 case)
+            f.write(bytes([0x02]))
         elif prime_count == 1:
-            f.write(bytes([0x03]))  # Prepend 0x03 for prime_count == 1 (encode 1 case)
+            f.write(bytes([0x03]))
         else:
-            f.write(bytes([0x00]))  # Prepend 0x00 for prime_count > 2
+            f.write(bytes([0x00]))
 
-        # Write divisors count and prime count
         write_4byte_int(f, len(divisors))
         write_4byte_int(f, prime_count)
 
-        # Fake "quantum" encode the size
         encoded_size = fake_quantum_encode(size)
         write_4byte_int(f, encoded_size)
 
-        # Write transformed data
         f.write(transformed_data)
 
     compress_with_paq(temp_file, output_paq)
@@ -134,11 +136,15 @@ def encode():
 
     print(f"Encoding complete. Output saved to {output_paq}")
 
-# Main decoding function
+# Decoding function
 def decode():
-    print("Simple Decoder (no Qiskit)")
-    input_paq = input("Enter compressed file (.paq): ").strip()
-    output_file = input("Enter output file: ").strip()
+    print("\nSimple Decoder (no Qiskit)")
+    try:
+        input_paq = input("Enter compressed file (.paq): ").strip()
+        output_file = input("Enter output file: ").strip()
+    except EOFError:
+        print("No input detected. Exiting decode mode.")
+        return
 
     if not os.path.isfile(input_paq):
         print("Compressed file does not exist.")
@@ -149,22 +155,14 @@ def decode():
 
     with open(temp_file, 'rb') as f:
         prepend_byte = f.read(1)
-        
-        if prepend_byte == b'\x00':
-            pass  # Handle 0x00 as expected
-        elif prepend_byte == b'\x01':
-            pass  # Handle 0x01 as expected
-        elif prepend_byte == b'\x02':
-            pass  # Handle 0x02 as expected
-        elif prepend_byte == b'\x03':
-            pass  # Handle 0x03 as expected
-        else:
-            print("Unexpected prepend byte.")
+
+        if prepend_byte not in (b'\x00', b'\x01', b'\x02', b'\x03'):
+            print("Unexpected prepend byte. Extraction failed.")
+            os.remove(temp_file)
             return
 
         divisors_count = read_4byte_int(f)
         prime_count = read_4byte_int(f)
-
         encoded_size = read_4byte_int(f)
         size = fake_quantum_decode(encoded_size)
 
@@ -178,17 +176,21 @@ def decode():
     os.remove(temp_file)
     print(f"Decoding complete. Output saved to {output_file}")
 
-# CLI
+# Main CLI
 if __name__ == "__main__":
     print("Created by Jurijus Pacalovas.")
     print("Options:")
     print("1 - Encode file")
     print("2 - Decode file")
-    choice = input("Enter 1 or 2: ").strip()
+    try:
+        choice = input("Enter 1 or 2: ").strip()
+    except EOFError:
+        print("No input detected. Defaulting to Encode (1).")
+        choice = '1'
 
     if choice == '1':
         encode()
     elif choice == '2':
         decode()
     else:
-        print("Invalid choice.")
+        print("Invalid choice. Exiting.")
