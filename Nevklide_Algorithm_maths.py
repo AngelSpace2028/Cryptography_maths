@@ -133,6 +133,8 @@ def decode():
     print(f"Decoding complete. Output saved to {output_file}")
 
 if __name__ == "__main__":
+    print("Quantum Software")
+    print("Created by Jurijus Pacalovas.")
     print("File Encoding/Decoding System")
     print("Options:")
     print("1 - Encode file")
