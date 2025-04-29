@@ -1,9 +1,7 @@
 import os
 import math
-import paq  
- 
+import paq
 
-# Check if a number is prime
 def is_prime(n):
     if n < 2:
         return False
@@ -16,45 +14,30 @@ def is_prime(n):
             return False
     return True
 
-# Find divisors, dividing by 2 and 3 as long as possible, and count primes
-def find_divisor_and_primes(n):
-    primes_found = 0
-    divisors = []
+def find_p_and_q(n):
+    original_n = n
+    p = n
     
-    # Divide by 2 as long as possible
-    while n % 2 == 0:
-        divisors.append(2)
-        n //= 2
-        primes_found += 1
+    # Divide by 2 until we get an odd number
+    while p % 2 == 0:
+        p = p // 2
     
-    # Divide by 3 as long as possible
-    while n % 3 == 0:
-        divisors.append(3)
-        n //= 3
-        primes_found += 1
+    # If the result isn't prime, find smallest prime factor
+    if not is_prime(p):
+        for i in range(3, int(math.isqrt(p)) + 1, 2):
+            if p % i == 0 and is_prime(i):
+                p = i
+                break
+    
+    q = original_n // p
+    return p, q
 
-    # Check for other prime factors
-    for i in range(5, int(math.isqrt(n)) + 1, 2):
-        while n % i == 0:
-            divisors.append(i)
-            n //= i
-            if is_prime(i):
-                primes_found += 1
-
-    if n > 2 and is_prime(n):
-        divisors.append(n)
-        primes_found += 1
-
-    return divisors, primes_found
-
-# Write and read 4-byte integer
 def write_4byte_int(f, value):
     f.write(value.to_bytes(4, 'big'))
 
 def read_4byte_int(f):
     return int.from_bytes(f.read(4), 'big')
 
-# Simple pattern transformation (bit-flipping)
 def transform_with_pattern(data, chunk_size=4):
     transformed = bytearray()
     for i in range(0, len(data), chunk_size):
@@ -62,14 +45,12 @@ def transform_with_pattern(data, chunk_size=4):
         transformed.extend([b ^ 0xFF for b in chunk])
     return transformed
 
-# Fake quantum encoding
 def fake_quantum_encode(number):
     return number ^ 0xAAAAAAAA
 
 def fake_quantum_decode(encoded_number):
     return encoded_number ^ 0xAAAAAAAA
 
-# Compress using PAQ (or zlib fallback)
 def compress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         data = f_in.read()
@@ -77,7 +58,6 @@ def compress_with_paq(input_file, output_file):
     with open(output_file, 'wb') as f_out:
         f_out.write(compressed_data)
 
-# Decompress using PAQ (or zlib fallback)
 def decompress_with_paq(input_file, output_file):
     with open(input_file, 'rb') as f_in:
         compressed_data = f_in.read()
@@ -85,9 +65,8 @@ def decompress_with_paq(input_file, output_file):
     with open(output_file, 'wb') as f_out:
         f_out.write(decompressed_data)
 
-# Encoding function
 def encode():
-    print("\nSimple Encoder (no Qiskit)")
+    print("\nSimple Encoder")
     try:
         input_file = input("Enter input file: ").strip()
         output_base = input("Enter output base name (without .paq): ").strip()
@@ -105,37 +84,26 @@ def encode():
         original_data = f.read()
 
     transformed_data = transform_with_pattern(original_data)
+    size = len(transformed_data)
+    p, q = find_p_and_q(size)
 
     temp_file = output_base + "_temp"
     with open(temp_file, 'wb') as f:
-        size = len(transformed_data)
-        divisors, prime_count = find_divisor_and_primes(size)
-
-        if prime_count == 2:
-            f.write(bytes([0x01]))
-        elif prime_count == 0:
-            f.write(bytes([0x02]))
-        elif prime_count == 1:
-            f.write(bytes([0x03]))
-        else:
-            f.write(bytes([0x00]))
-
-        write_4byte_int(f, len(divisors))
-        write_4byte_int(f, prime_count)
-
-        encoded_size = fake_quantum_encode(size)
-        write_4byte_int(f, encoded_size)
-
+        # Store p and q as 4-byte integers
+        write_4byte_int(f, p)
+        write_4byte_int(f, q)
+        
+        # Store transformed data
         f.write(transformed_data)
 
     compress_with_paq(temp_file, output_paq)
     os.remove(temp_file)
 
     print(f"Encoding complete. Output saved to {output_paq}")
+    print(f"Size factors: p={p}, q={q}")
 
-# Decoding function
 def decode():
-    print("\nSimple Decoder (no Qiskit)")
+    print("\nSimple Decoder")
     try:
         input_paq = input("Enter compressed file (.paq): ").strip()
         output_file = input("Enter output file: ").strip()
@@ -151,19 +119,16 @@ def decode():
     decompress_with_paq(input_paq, temp_file)
 
     with open(temp_file, 'rb') as f:
-        prepend_byte = f.read(1)
-
-        if prepend_byte not in (b'\x00', b'\x01', b'\x02', b'\x03'):
-            print("Unexpected prepend byte. Extraction failed.")
-            os.remove(temp_file)
-            return
-
-        divisors_count = read_4byte_int(f)
-        prime_count = read_4byte_int(f)
-        encoded_size = read_4byte_int(f)
-        size = fake_quantum_decode(encoded_size)
-
+        # Read p and q (4-byte integers)
+        p = read_4byte_int(f)
+        q = read_4byte_int(f)
+        
+        # Read transformed data
         transformed_data = f.read()
+
+    # Verify the size matches p*q
+    if len(transformed_data) != p * q:
+        print("Warning: File size doesn't match p*q factors!")
 
     recovered_data = transform_with_pattern(transformed_data)
 
@@ -173,10 +138,8 @@ def decode():
     os.remove(temp_file)
     print(f"Decoding complete. Output saved to {output_file}")
 
-# Main CLI
 if __name__ == "__main__":
-    print("Quantum Software")
-    print("Created by Jurijus Pacalovas.")
+    print("File Encoding/Decoding System")
     print("Options:")
     print("1 - Encode file")
     print("2 - Decode file")
