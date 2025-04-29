@@ -4,31 +4,32 @@ import paq
 
 def is_prime(n):
     if n < 2:
-        return False
+        return False, b'\x00'
     if n == 2:
-        return True
+        return True, b'\x01'
     if n % 2 == 0:
-        return False
+        return False, b'\x02'
     for i in range(3, int(math.isqrt(n)) + 1, 2):
         if n % i == 0:
-            return False
-    return True
+            return False, b'\x03'
+    return True, b'\xFF'
 
 def find_p_and_q(n):
     original_n = n
     p = n
-    
-    # Divide by 2 until we get an odd number
+
     while p % 2 == 0:
         p = p // 2
-    
-    # If the result isn't prime, find smallest prime factor
-    if not is_prime(p):
+
+    prime, _ = is_prime(p)
+    if not prime:
         for i in range(3, int(math.isqrt(p)) + 1, 2):
-            if p % i == 0 and is_prime(i):
-                p = i
-                break
-    
+            if p % i == 0:
+                prime_check, _ = is_prime(i)
+                if prime_check:
+                    p = i
+                    break
+
     q = original_n // p
     return p, q
 
@@ -75,7 +76,7 @@ def encode():
         return
 
     output_paq = output_base + ".paq"
-    
+
     if not os.path.isfile(input_file):
         print("File does not exist.")
         return
@@ -89,11 +90,8 @@ def encode():
 
     temp_file = output_base + "_temp"
     with open(temp_file, 'wb') as f:
-        # Store p and q as 4-byte integers
         write_4byte_int(f, p)
         write_4byte_int(f, q)
-        
-        # Store transformed data
         f.write(transformed_data)
 
     compress_with_paq(temp_file, output_paq)
@@ -119,14 +117,10 @@ def decode():
     decompress_with_paq(input_paq, temp_file)
 
     with open(temp_file, 'rb') as f:
-        # Read p and q (4-byte integers)
         p = read_4byte_int(f)
         q = read_4byte_int(f)
-        
-        # Read transformed data
         transformed_data = f.read()
 
-    # Verify the size matches p*q
     if len(transformed_data) != p * q:
         print("Warning: File size doesn't match p*q factors!")
 
