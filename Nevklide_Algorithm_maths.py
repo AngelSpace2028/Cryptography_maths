@@ -1,6 +1,5 @@
 import os
 import math
-import paq
 
 def is_prime(n):
     """Primality test (can be improved for larger numbers)."""
@@ -30,7 +29,7 @@ def find_p_and_q(n):
         return p, q
     else:
         # Attempt to find a prime factor (this is still a basic approach)
-        for i in range(3, int(p**0.5) + 1, 2):
+        for i in range(3, int(math.sqrt(p)) + 1, 2): # Use math.sqrt for better precision.
             if p % i == 0:
                 prime_check, _ = is_prime(i)
                 if prime_check:
@@ -52,36 +51,16 @@ def transform_with_pattern(data, chunk_size=4):
         transformed.extend([b ^ 0xFF for b in chunk])
     return transformed
 
-def fake_quantum_encode(number):
-    return number ^ 0xAAAAAAAA
-
-def fake_quantum_decode(encoded_number):
-    return encoded_number ^ 0xAAAAAAAA
-
-def compress_with_paq(input_file, output_file):
-    with open(input_file, 'rb') as f_in:
-        data = f_in.read()
-    compressed_data = paq.compress(data)
-    with open(output_file, 'wb') as f_out:
-        f_out.write(compressed_data)
-
-def decompress_with_paq(input_file, output_file):
-    with open(input_file, 'rb') as f_in:
-        compressed_data = f_in.read()
-    decompressed_data = paq.decompress(compressed_data)
-    with open(output_file, 'wb') as f_out:
-        f_out.write(decompressed_data)
-
-def encode():
-    print("\nSimple Encoder")
+def encode_no_compression():
+    print("\nSimple Encoder (No Compression)")
     try:
         input_file = input("Enter input file: ").strip()
-        output_base = input("Enter output base name (without .paq): ").strip()
+        output_base = input("Enter output base name (without .enc): ").strip()
     except EOFError:
         print("No input detected. Exiting encode mode.")
         return
 
-    output_paq = output_base + ".paq"
+    output_enc = output_base + ".enc"
 
     if not os.path.isfile(input_file):
         print(f"Error: File '{input_file}' does not exist.")
@@ -99,40 +78,33 @@ def encode():
             print("Error: Could not find suitable factors p and q.")
             return
 
-        temp_file = output_base + "_temp"
-        with open(temp_file, 'wb') as f:
+        with open(output_enc, 'wb') as f:
             write_4byte_int(f, p)
             write_4byte_int(f, q)
             f.write(transformed_data)
 
-        compress_with_paq(temp_file, output_paq)
-        os.remove(temp_file)
-
-        print(f"Encoding complete. Output saved to {output_paq}")
+        print(f"Encoding complete. Output saved to {output_enc}")
         print(f"Size factors: p={p}, q={q}")
 
     except Exception as e:
         print(f"An error occurred during encoding: {e}")
 
 
-def decode():
-    print("\nSimple Decoder")
+def decode_no_compression():
+    print("\nSimple Decoder (No Compression)")
     try:
-        input_paq = input("Enter compressed file (.paq): ").strip()
+        input_enc = input("Enter encoded file (.enc): ").strip()
         output_file = input("Enter output file: ").strip()
     except EOFError:
         print("No input detected. Exiting decode mode.")
         return
 
-    if not os.path.isfile(input_paq):
-        print(f"Error: File '{input_paq}' does not exist.")
+    if not os.path.isfile(input_enc):
+        print(f"Error: File '{input_enc}' does not exist.")
         return
 
     try:
-        temp_file = input_paq.replace('.paq', '_temp')
-        decompress_with_paq(input_paq, temp_file)
-
-        with open(temp_file, 'rb') as f:
+        with open(input_enc, 'rb') as f:
             p = read_4byte_int(f)
             q = read_4byte_int(f)
             transformed_data = f.read()
@@ -145,7 +117,6 @@ def decode():
         with open(output_file, 'wb') as f:
             f.write(recovered_data)
 
-        os.remove(temp_file)
         print(f"Decoding complete. Output saved to {output_file}")
 
     except Exception as e:
@@ -153,7 +124,7 @@ def decode():
 
 
 if __name__ == "__main__":
-    print("Sowtware")
+    print("Quantum Software (No Compression)")
     print("Created by Jurijus Pacalovas.")
     print("File Encoding/Decoding System")
     print("Options:")
@@ -169,6 +140,6 @@ if __name__ == "__main__":
         choice = '1'
 
     if choice == '1':
-        encode()
+        encode_no_compression()
     elif choice == '2':
-        decode()
+        decode_no_compression()
