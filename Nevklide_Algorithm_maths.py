@@ -3,35 +3,41 @@ import math
 import paq
 
 def is_prime(n):
+    """Primality test (can be improved for larger numbers)."""
     if n < 2:
         return False, b'\x00'
     if n == 2:
         return True, b'\x01'
     if n % 2 == 0:
         return False, b'\x02'
-    for i in range(3, int(math.isqrt(n)) + 1, 2):
+    for i in range(3, int(n**0.5) + 1, 2):
         if n % i == 0:
             return False, b'\x03'
     return True, b'\xFF'
 
 def find_p_and_q(n):
+    """Finds factors p and q.  Improved error handling."""
     original_n = n
     p = n
-
     while p % 2 == 0:
-        p = p // 2
+        p //= 2
+    if p == 1:  # Handle the case where n is a power of 2
+        return 2, n // 2
 
     prime, _ = is_prime(p)
-    if not prime:
-        for i in range(3, int(math.isqrt(p)) + 1, 2):
+    if prime:
+        q = original_n // p
+        return p, q
+    else:
+        # Attempt to find a prime factor (this is still a basic approach)
+        for i in range(3, int(p**0.5) + 1, 2):
             if p % i == 0:
                 prime_check, _ = is_prime(i)
                 if prime_check:
                     p = i
-                    break
-
-    q = original_n // p
-    return p, q
+                    q = original_n // p
+                    return p, q
+        return None, None  # Indicate failure to find factors
 
 def write_4byte_int(f, value):
     f.write(value.to_bytes(4, 'big'))
@@ -78,27 +84,36 @@ def encode():
     output_paq = output_base + ".paq"
 
     if not os.path.isfile(input_file):
-        print("File does not exist.")
+        print(f"Error: File '{input_file}' does not exist.")
         return
 
-    with open(input_file, 'rb') as f:
-        original_data = f.read()
+    try:
+        with open(input_file, 'rb') as f:
+            original_data = f.read()
 
-    transformed_data = transform_with_pattern(original_data)
-    size = len(transformed_data)
-    p, q = find_p_and_q(size)
+        transformed_data = transform_with_pattern(original_data)
+        size = len(transformed_data)
+        p, q = find_p_and_q(size)
 
-    temp_file = output_base + "_temp"
-    with open(temp_file, 'wb') as f:
-        write_4byte_int(f, p)
-        write_4byte_int(f, q)
-        f.write(transformed_data)
+        if p is None or q is None:
+            print("Error: Could not find suitable factors p and q.")
+            return
 
-    compress_with_paq(temp_file, output_paq)
-    os.remove(temp_file)
+        temp_file = output_base + "_temp"
+        with open(temp_file, 'wb') as f:
+            write_4byte_int(f, p)
+            write_4byte_int(f, q)
+            f.write(transformed_data)
 
-    print(f"Encoding complete. Output saved to {output_paq}")
-    print(f"Size factors: p={p}, q={q}")
+        compress_with_paq(temp_file, output_paq)
+        os.remove(temp_file)
+
+        print(f"Encoding complete. Output saved to {output_paq}")
+        print(f"Size factors: p={p}, q={q}")
+
+    except Exception as e:
+        print(f"An error occurred during encoding: {e}")
+
 
 def decode():
     print("\nSimple Decoder")
@@ -110,27 +125,32 @@ def decode():
         return
 
     if not os.path.isfile(input_paq):
-        print("Compressed file does not exist.")
+        print(f"Error: File '{input_paq}' does not exist.")
         return
 
-    temp_file = input_paq.replace('.paq', '_temp')
-    decompress_with_paq(input_paq, temp_file)
+    try:
+        temp_file = input_paq.replace('.paq', '_temp')
+        decompress_with_paq(input_paq, temp_file)
 
-    with open(temp_file, 'rb') as f:
-        p = read_4byte_int(f)
-        q = read_4byte_int(f)
-        transformed_data = f.read()
+        with open(temp_file, 'rb') as f:
+            p = read_4byte_int(f)
+            q = read_4byte_int(f)
+            transformed_data = f.read()
 
-    if len(transformed_data) != p * q:
-        print("Warning: File size doesn't match p*q factors!")
+        if len(transformed_data) != p * q:
+            print("Warning: File size doesn't match p*q factors!")
 
-    recovered_data = transform_with_pattern(transformed_data)
+        recovered_data = transform_with_pattern(transformed_data)
 
-    with open(output_file, 'wb') as f:
-        f.write(recovered_data)
+        with open(output_file, 'wb') as f:
+            f.write(recovered_data)
 
-    os.remove(temp_file)
-    print(f"Decoding complete. Output saved to {output_file}")
+        os.remove(temp_file)
+        print(f"Decoding complete. Output saved to {output_file}")
+
+    except Exception as e:
+        print(f"An error occurred during decoding: {e}")
+
 
 if __name__ == "__main__":
     print("Quantum Software")
@@ -141,6 +161,9 @@ if __name__ == "__main__":
     print("2 - Decode file")
     try:
         choice = input("Enter 1 or 2: ").strip()
+        if choice not in ('1', '2'):
+            print("Invalid choice. Exiting.")
+            exit()
     except EOFError:
         print("No input detected. Defaulting to Encode (1).")
         choice = '1'
@@ -149,5 +172,3 @@ if __name__ == "__main__":
         encode()
     elif choice == '2':
         decode()
-    else:
-        print("Invalid choice. Exiting.")
