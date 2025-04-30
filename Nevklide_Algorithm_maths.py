@@ -153,7 +153,7 @@ def decode():
 
 
 if __name__ == "__main__":
-    print("Quantum Software")
+    print("Sowtware")
     print("Created by Jurijus Pacalovas.")
     print("File Encoding/Decoding System")
     print("Options:")
