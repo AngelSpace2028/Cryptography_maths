@@ -124,7 +124,7 @@ def decode_no_compression():
 
 
 if __name__ == "__main__":
-    print("Quantum Software (No Compression)")
+    print("Software")
     print("Created by Jurijus Pacalovas.")
     print("File Encoding/Decoding System")
     print("Options:")
