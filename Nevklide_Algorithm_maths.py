@@ -38,7 +38,7 @@ def transform_with_pattern(data, chunk_size=4):
     return transformed
 
 def encode_no_compression():
-    print("\nSimple Encoder (No Compression)")
+    print("\nSimple Encoder (XOR + zlib Compression)")
     try:
         input_file = input("Enter input file: ").strip()
         output_base = input("Enter output base name (without .enc): ").strip()
@@ -57,7 +57,9 @@ def encode_no_compression():
             original_data = f.read()
 
         transformed_data = transform_with_pattern(original_data)
-        size = len(transformed_data)
+        compressed_data = (bytes(transformed_data))
+
+        size = len(compressed_data)
         p, q = find_p_and_q(size)
 
         if p is None or q is None:
@@ -66,14 +68,14 @@ def encode_no_compression():
             print(f"Info: Factors of size are p = {p}, q = {q}")
 
         with open(output_enc, 'wb') as f:
-            f.write(transformed_data)
+            f.write(compressed_data)
 
         print(f"Encoding complete. Output saved to {output_enc}")
     except Exception as e:
         print(f"An error occurred during encoding: {e}")
 
 def decode_no_compression():
-    print("\nSimple Decoder (No Compression)")
+    print("\nSimple Decoder (zlib Decompression + XOR)")
     try:
         input_enc = input("Enter encoded file (.enc): ").strip()
         output_file = input("Enter output file: ").strip()
@@ -87,8 +89,9 @@ def decode_no_compression():
 
     try:
         with open(input_enc, 'rb') as f:
-            transformed_data = f.read()
+            compressed_data = f.read()
 
+        transformed_data = (compressed_data)
         recovered_data = transform_with_pattern(transformed_data)
 
         with open(output_file, 'wb') as f:
