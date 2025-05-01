@@ -2,49 +2,35 @@ import os
 import math
 
 def is_prime(n):
-    """Primality test (can be improved for larger numbers)."""
+    """Simple primality test."""
     if n < 2:
-        return False, b'\x00'
+        return False
     if n == 2:
-        return True, b'\x01'
+        return True
     if n % 2 == 0:
-        return False, b'\x02'
-    for i in range(3, int(n**0.5) + 1, 2):
+        return False
+    for i in range(3, int(n ** 0.5) + 1, 2):
         if n % i == 0:
-            return False, b'\x03'
-    return True, b'\xFF'
+            return False
+    return True
 
 def find_p_and_q(n):
-    """Finds factors p and q.  Improved error handling."""
+    """Finds two factors p and q of n where p is prime if possible."""
     original_n = n
     p = n
     while p % 2 == 0:
         p //= 2
-    if p == 1:  # Handle the case where n is a power of 2
-        return 2, n // 2
-
-    prime, _ = is_prime(p)
-    if prime:
-        q = original_n // p
-        return p, q
-    else:
-        # Attempt to find a prime factor (this is still a basic approach)
-        for i in range(3, int(math.sqrt(p)) + 1, 2): # Use math.sqrt for better precision.
-            if p % i == 0:
-                prime_check, _ = is_prime(i)
-                if prime_check:
-                    p = i
-                    q = original_n // p
-                    return p, q
-        return None, None  # Indicate failure to find factors
-
-def write_4byte_int(f, value):
-    f.write(value.to_bytes(4, 'big'))
-
-def read_4byte_int(f):
-    return int.from_bytes(f.read(4), 'big')
+        if p == 1:
+            return 2, n // 2
+    if is_prime(p):
+        return p, original_n // p
+    for i in range(3, int(math.sqrt(p)) + 1, 2):
+        if p % i == 0 and is_prime(i):
+            return i, original_n // i
+    return None, None
 
 def transform_with_pattern(data, chunk_size=4):
+    """Apply XOR 0xFF transformation per chunk."""
     transformed = bytearray()
     for i in range(0, len(data), chunk_size):
         chunk = data[i:i + chunk_size]
@@ -75,20 +61,16 @@ def encode_no_compression():
         p, q = find_p_and_q(size)
 
         if p is None or q is None:
-            print("Error: Could not find suitable factors p and q.")
-            return
+            print("Warning: Could not find suitable factors p and q.")
+        else:
+            print(f"Info: Factors of size are p = {p}, q = {q}")
 
         with open(output_enc, 'wb') as f:
-            write_4byte_int(f, p)
-            write_4byte_int(f, q)
             f.write(transformed_data)
 
         print(f"Encoding complete. Output saved to {output_enc}")
-        print(f"Size factors: p={p}, q={q}")
-
     except Exception as e:
         print(f"An error occurred during encoding: {e}")
-
 
 def decode_no_compression():
     print("\nSimple Decoder (No Compression)")
@@ -105,12 +87,7 @@ def decode_no_compression():
 
     try:
         with open(input_enc, 'rb') as f:
-            p = read_4byte_int(f)
-            q = read_4byte_int(f)
             transformed_data = f.read()
-
-        if len(transformed_data) != p * q:
-            print("Warning: File size doesn't match p*q factors!")
 
         recovered_data = transform_with_pattern(transformed_data)
 
@@ -118,10 +95,8 @@ def decode_no_compression():
             f.write(recovered_data)
 
         print(f"Decoding complete. Output saved to {output_file}")
-
     except Exception as e:
         print(f"An error occurred during decoding: {e}")
-
 
 if __name__ == "__main__":
     print("Software")
