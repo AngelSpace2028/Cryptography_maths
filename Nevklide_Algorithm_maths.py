@@ -56,9 +56,11 @@ def encode_no_compression():
         with open(input_file, 'rb') as f:
             original_data = f.read()
 
+        # Apply XOR transformation
         transformed_data = transform_with_pattern(original_data)
-        compressed_data = (bytes(transformed_data))
+        compressed_data = bytes(transformed_data)
 
+        # Get prime factors of the compressed data size
         size = len(compressed_data)
         p, q = find_p_and_q(size)
 
@@ -67,6 +69,7 @@ def encode_no_compression():
         else:
             print(f"Info: Factors of size are p = {p}, q = {q}")
 
+        # Write the encoded (transformed) data to the output file
         with open(output_enc, 'wb') as f:
             f.write(compressed_data)
 
@@ -91,9 +94,11 @@ def decode_no_compression():
         with open(input_enc, 'rb') as f:
             compressed_data = f.read()
 
-        transformed_data = (compressed_data)
+        # Apply XOR transformation (reverse)
+        transformed_data = compressed_data
         recovered_data = transform_with_pattern(transformed_data)
 
+        # Write the decoded data to the output file
         with open(output_file, 'wb') as f:
             f.write(recovered_data)
 
