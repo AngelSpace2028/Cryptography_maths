@@ -1,5 +1,7 @@
 import os
 import math
+import sympy
+
 
 def is_prime(n):
     """Simple primality test."""
@@ -14,20 +16,20 @@ def is_prime(n):
             return False
     return True
 
-def find_p_and_q(n):
-    """Finds two factors p and q of n where p is prime if possible."""
-    original_n = n
-    p = n
-    while p % 2 == 0:
-        p //= 2
-        if p == 1:
-            return 2, n // 2
-    if is_prime(p):
-        return p, original_n // p
-    for i in range(3, int(math.sqrt(p)) + 1, 2):
-        if p % i == 0 and is_prime(i):
-            return i, original_n // i
-    return None, None
+def find_primes_in_range(start, end):
+    """Find all prime numbers between a given range."""
+    return list(sympy.primerange(start, end))
+
+def find_prime_factors(n):
+    """Find prime factors of a number."""
+    factors = []
+    for i in range(2, int(math.sqrt(n)) + 1):
+        while n % i == 0 and is_prime(i):
+            factors.append(i)
+            n //= i
+    if n > 1:
+        factors.append(n)
+    return factors
 
 def transform_with_pattern(data, chunk_size=4):
     """Apply XOR 0xFF transformation per chunk."""
@@ -37,7 +39,7 @@ def transform_with_pattern(data, chunk_size=4):
         transformed.extend([b ^ 0xFF for b in chunk])
     return transformed
 
-def encode_no_compression():
+def encode_with_zlib():
     print("\nSimple Encoder (XOR + zlib Compression)")
     try:
         input_file = input("Enter input file: ").strip()
@@ -58,18 +60,20 @@ def encode_no_compression():
 
         # Apply XOR transformation
         transformed_data = transform_with_pattern(original_data)
-        compressed_data = bytes(transformed_data)
+
+        # Compress using zlib
+        compressed_data = (bytes(transformed_data))
 
         # Get prime factors of the compressed data size
         size = len(compressed_data)
-        p, q = find_p_and_q(size)
+        factors = find_prime_factors(size)
 
-        if p is None or q is None:
-            print("Warning: Could not find suitable factors p and q.")
+        if not factors:
+            print("Warning: Could not find suitable prime factors.")
         else:
-            print(f"Info: Factors of size are p = {p}, q = {q}")
+            print(f"Info: Prime factors of size are {factors}")
 
-        # Write the encoded (transformed) data to the output file
+        # Write the encoded (transformed and compressed) data to the output file
         with open(output_enc, 'wb') as f:
             f.write(compressed_data)
 
@@ -77,7 +81,7 @@ def encode_no_compression():
     except Exception as e:
         print(f"An error occurred during encoding: {e}")
 
-def decode_no_compression():
+def decode_with_zlib():
     print("\nSimple Decoder (zlib Decompression + XOR)")
     try:
         input_enc = input("Enter encoded file (.enc): ").strip()
@@ -94,9 +98,11 @@ def decode_no_compression():
         with open(input_enc, 'rb') as f:
             compressed_data = f.read()
 
+        # Decompress using zlib
+        decompressed_data = (compressed_data)
+
         # Apply XOR transformation (reverse)
-        transformed_data = compressed_data
-        recovered_data = transform_with_pattern(transformed_data)
+        recovered_data = transform_with_pattern(decompressed_data)
 
         # Write the decoded data to the output file
         with open(output_file, 'wb') as f:
@@ -106,6 +112,24 @@ def decode_no_compression():
     except Exception as e:
         print(f"An error occurred during decoding: {e}")
 
+def find_primes_and_factors():
+    # Define the range
+    lower_bound = 255
+    upper_bound = 2**28 * 1024 * 1024  # 2^28 * 1024 * 1024
+
+    # Find all primes in the range
+    primes = find_primes_in_range(lower_bound, upper_bound)
+
+    # Find primes divisible by 2 (which will only be 2)
+    primes_divisible_by_2 = [p for p in primes if p % 2 == 0]
+
+    # Find primes close to the top limit (near the upper range)
+    primes_near_top = [p for p in primes if p > upper_bound - 1000]
+
+    # Output results
+    print("Prime numbers divisible by 2 (only 2 will be here):", primes_divisible_by_2)
+    print("\nPrimes near the top limit (close to 2^28 * 1024 * 1024):", primes_near_top)
+
 if __name__ == "__main__":
     print("Software")
     print("Created by Jurijus Pacalovas.")
@@ -113,9 +137,10 @@ if __name__ == "__main__":
     print("Options:")
     print("1 - Encode file")
     print("2 - Decode file")
+    print("3 - Find primes and their factors")
     try:
-        choice = input("Enter 1 or 2: ").strip()
-        if choice not in ('1', '2'):
+        choice = input("Enter 1, 2, or 3: ").strip()
+        if choice not in ('1', '2', '3'):
             print("Invalid choice. Exiting.")
             exit()
     except EOFError:
@@ -123,6 +148,8 @@ if __name__ == "__main__":
         choice = '1'
 
     if choice == '1':
-        encode_no_compression()
+        encode_with_zlib()
     elif choice == '2':
-        decode_no_compression()
+        decode_with_zlib()
+    elif choice == '3':
+        find_primes_and_factors()
