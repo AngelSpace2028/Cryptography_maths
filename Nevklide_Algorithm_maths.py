@@ -1,13 +1,5 @@
 import os
 
-def transform_with_pattern(data, chunk_size=4):
-    """Apply XOR 0xFF transformation per chunk."""
-    transformed = bytearray()
-    for i in range(0, len(data), chunk_size):
-        chunk = data[i:i + chunk_size]
-        transformed.extend([b ^ 0xFF for b in chunk])
-    return transformed
-
 def is_prime(n):
     """Simple primality test."""
     if n < 2:
@@ -31,8 +23,28 @@ def find_nearest_prime_around(n):
             return n + offset
         offset += 1
 
+def prime_half_round_transform(data):
+    """Divide prime bytes by 2 and round to nearest integer."""
+    transformed = bytearray()
+    for b in data:
+        if is_prime(b):
+            transformed.append(int(round(b / 2)))
+        else:
+            transformed.append(b)
+    return transformed
+
+def transform_with_pattern(data, chunk_size=4):
+    """Apply XOR 0xFF and then prime-half-round transformation."""
+    transformed = bytearray()
+    for i in range(0, len(data), chunk_size):
+        chunk = data[i:i + chunk_size]
+        xor_chunk = bytearray([b ^ 0xFF for b in chunk])
+        final_chunk = prime_half_round_transform(xor_chunk)
+        transformed.extend(final_chunk)
+    return transformed
+
 def encode_no_compression():
-    print("\nSimple Encoder (XOR transformation + Zlib compression)")
+    print("\nSimple Encoder (XOR + Prime Transform + No Compression)")
     try:
         input_file = input("Enter input file: ").strip()
         output_base = input("Enter output base name (without .enc): ").strip()
@@ -41,7 +53,6 @@ def encode_no_compression():
         return
 
     output_enc = output_base + ".enc"
-
     if not os.path.isfile(input_file):
         print(f"Error: File '{input_file}' does not exist.")
         return
@@ -50,33 +61,27 @@ def encode_no_compression():
         with open(input_file, 'rb') as f:
             original_data = f.read()
 
-        # Apply XOR transformation
+        # Apply transformations
         transformed_data = transform_with_pattern(original_data)
 
-        # Convert bytearray to bytes before compression
-        transformed_data_bytes = bytes(transformed_data)
-
-        # Apply Zlib compression
-        compressed_data = (transformed_data_bytes)
-
-        # Save to output file
+        # Save transformed data
         with open(output_enc, 'wb') as f:
-            f.write(compressed_data)
+            f.write(transformed_data)
 
-        # Analyze file size
-        size = len(compressed_data)
+        size = len(transformed_data)
         half_size = size // 2
         nearby_prime = find_nearest_prime_around(half_size)
-        print(f"Transformed and compressed file size: {size} bytes")
-        print(f"Half of size: {half_size}")
-        print(f"Nearest prime around {half_size} is: {nearby_prime}")
 
+        print(f"Transformed file size: {size} bytes")
+        print(f"Half of size: {half_size}")
+        print(f"Nearest prime around {half_size}: {nearby_prime}")
         print(f"Encoding complete. Output saved to {output_enc}")
+
     except Exception as e:
         print(f"An error occurred during encoding: {e}")
 
 def decode_no_compression():
-    print("\nSimple Decoder (Zlib decompression + XOR transformation)")
+    print("\nSimple Decoder (Reverse Transform)")
     try:
         input_enc = input("Enter encoded file (.enc): ").strip()
         output_file = input("Enter output file: ").strip()
@@ -92,16 +97,17 @@ def decode_no_compression():
         with open(input_enc, 'rb') as f:
             encoded_data = f.read()
 
-        # Apply Zlib decompression
-        decompressed_data = (encoded_data)
-
-        # Apply XOR transformation (reverse)
-        recovered_data = transform_with_pattern(decompressed_data)
+        # Reverse transform approximation
+        # WARNING: Since dividing prime values by 2 and rounding is NOT perfectly reversible,
+        # this decoder can only approximate or simulate recovery.
+        # Full reversibility would require saving metadata during encoding.
+        recovered_data = bytearray([b ^ 0xFF for b in encoded_data])
 
         with open(output_file, 'wb') as f:
             f.write(recovered_data)
 
         print(f"Decoding complete. Output saved to {output_file}")
+
     except Exception as e:
         print(f"An error occurred during decoding: {e}")
 
